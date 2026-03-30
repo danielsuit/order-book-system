@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake g++
+
+      - name: Build
+        working-directory: convergence
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc)
+
+      - name: Run unit tests
+        working-directory: convergence/build
+        run: ctest --output-on-failure
+
+  docker:
+    runs-on: ubuntu-24.04
+    needs: build-and-test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        working-directory: convergence
+        run: docker build -t convergence .
+
+      - name: Integration test
+        working-directory: convergence
+        run: |
+          docker compose up -d
+          sleep 5
+          python3 scripts/send_order.py localhost 8001 "ADD BUY 150.00 100"
+          sleep 2
+          python3 scripts/monitor_convergence.py &
+          MONITOR_PID=$!
+          sleep 5
+          kill $MONITOR_PID
+          docker compose down
