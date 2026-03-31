@@ -1,0 +1,53 @@
+{
+  "dashboard": {
+    "title": "Convergence Order Book",
+    "panels": [
+      {
+        "title": "Active Orders per Node",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "convergence_orders_total",
+            "legendFormat": "{{node}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+      },
+      {
+        "title": "Operation Log Size",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "convergence_op_log_size",
+            "legendFormat": "{{node}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+      },
+      {
+        "title": "Book Depth (Bids)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "convergence_book_depth{side=\"bid\"}",
+            "legendFormat": "{{node}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+      },
+      {
+        "title": "Book Depth (Asks)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "convergence_book_depth{side=\"ask\"}",
+            "legendFormat": "{{node}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+      }
+    ],
+    "time": {"from": "now-5m", "to": "now"},
+    "refresh": "5s"
+  }
+}

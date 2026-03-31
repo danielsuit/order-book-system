@@ -1,0 +1,12 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: convergence
+    static_configs:
+      - targets:
+          - node-a:9100
+          - node-b:9100
+          - node-c:9100
+          - node-d:9100
+          - node-e:9100

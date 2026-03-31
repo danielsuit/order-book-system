@@ -1,0 +1,122 @@
+services:
+  node-a:
+    build: .
+    environment:
+      NODE_ID: node-a
+      UDP_PORT: "7000"
+      TCP_PORT: "8000"
+      SEED_PEERS: "node-b:7000,node-c:7000,node-d:7000,node-e:7000"
+      GOSSIP_INTERVAL_MS: "100"
+      GOSSIP_STRATEGY: "${GOSSIP_STRATEGY:-WYTHOFF}"
+      QUANTUM_ENABLED: "${QUANTUM_ENABLED:-0}"
+    ports:
+      - "8001:8000"
+      - "7001:7000/udp"
+    cap_add:
+      - NET_ADMIN
+
+  node-b:
+    build: .
+    environment:
+      NODE_ID: node-b
+      UDP_PORT: "7000"
+      TCP_PORT: "8000"
+      SEED_PEERS: "node-a:7000,node-c:7000,node-d:7000,node-e:7000"
+      GOSSIP_INTERVAL_MS: "100"
+      GOSSIP_STRATEGY: "${GOSSIP_STRATEGY:-WYTHOFF}"
+      QUANTUM_ENABLED: "${QUANTUM_ENABLED:-0}"
+    ports:
+      - "8002:8000"
+      - "7002:7000/udp"
+    cap_add:
+      - NET_ADMIN
+
+  node-c:
+    build: .
+    environment:
+      NODE_ID: node-c
+      UDP_PORT: "7000"
+      TCP_PORT: "8000"
+      SEED_PEERS: "node-a:7000,node-b:7000,node-d:7000,node-e:7000"
+      GOSSIP_INTERVAL_MS: "100"
+      GOSSIP_STRATEGY: "${GOSSIP_STRATEGY:-WYTHOFF}"
+      QUANTUM_ENABLED: "${QUANTUM_ENABLED:-0}"
+    ports:
+      - "8003:8000"
+      - "7003:7000/udp"
+    cap_add:
+      - NET_ADMIN
+
+  node-d:
+    build: .
+    environment:
+      NODE_ID: node-d
+      UDP_PORT: "7000"
+      TCP_PORT: "8000"
+      SEED_PEERS: "node-a:7000,node-b:7000,node-c:7000,node-e:7000"
+      GOSSIP_INTERVAL_MS: "100"
+      GOSSIP_STRATEGY: "${GOSSIP_STRATEGY:-WYTHOFF}"
+      QUANTUM_ENABLED: "${QUANTUM_ENABLED:-0}"
+    ports:
+      - "8004:8000"
+      - "7004:7000/udp"
+    cap_add:
+      - NET_ADMIN
+
+  node-e:
+    build: .
+    environment:
+      NODE_ID: node-e
+      UDP_PORT: "7000"
+      TCP_PORT: "8000"
+      SEED_PEERS: "node-a:7000,node-b:7000,node-c:7000,node-d:7000"
+      GOSSIP_INTERVAL_MS: "100"
+      GOSSIP_STRATEGY: "${GOSSIP_STRATEGY:-WYTHOFF}"
+      QUANTUM_ENABLED: "${QUANTUM_ENABLED:-0}"
+    ports:
+      - "8005:8000"
+      - "7005:7000/udp"
+    cap_add:
+      - NET_ADMIN
+
+  # ---- Frontend ----
+  bridge:
+    build: ./frontend/server
+    environment:
+      NODES: "node-a:node-a:8000,node-b:node-b:8000,node-c:node-c:8000,node-d:node-d:8000,node-e:node-e:8000"
+      WS_PORT: "3001"
+      POLL_INTERVAL: "500"
+    ports:
+      - "3001:3001"
+    depends_on:
+      - node-a
+      - node-b
+      - node-c
+      - node-d
+      - node-e
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - bridge
+
+  # ---- Monitoring ----
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus

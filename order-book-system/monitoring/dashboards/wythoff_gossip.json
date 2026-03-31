@@ -1,0 +1,179 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "Gossip Schedule Timeline",
+      "description": "Which node pair communicated each round. The Wythoff schedule produces a quasi-periodic, non-repeating pattern that ensures uniform coverage without periodic vulnerability.",
+      "type": "heatmap",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "convergence_gossip_pair_index{strategy=\"WYTHOFF\"}",
+          "legendFormat": "{{node}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "scaleDistribution": { "type": "linear" }
+          },
+          "color": { "mode": "scheme", "schemeVersion": 1 },
+          "mappings": []
+        }
+      },
+      "options": {
+        "calculate": true,
+        "calculation": { "xBuckets": { "mode": "size", "value": "1" }, "yBuckets": { "mode": "size", "value": "1" } },
+        "cellGap": 1,
+        "color": { "mode": "scheme", "scheme": "Turbo", "steps": 64 },
+        "yAxis": { "axisLabel": "Pair Index (sender*N + receiver)", "reverse": false }
+      }
+    },
+    {
+      "title": "Convergence Time by Strategy",
+      "description": "Mean and P95 convergence time after partition heal. Lower is better. Wythoff should show low variance and no periodic vulnerability.",
+      "type": "barchart",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 10 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "convergence_benchmark_mean_ms",
+          "legendFormat": "{{strategy}} mean",
+          "refId": "A"
+        },
+        {
+          "expr": "convergence_benchmark_p95_ms",
+          "legendFormat": "{{strategy}} p95",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byRegexp", "options": ".*WYTHOFF.*" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "#37872D", "mode": "fixed" } }]
+          },
+          {
+            "matcher": { "id": "byRegexp", "options": ".*RANDOM.*" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "#C4162A", "mode": "fixed" } }]
+          },
+          {
+            "matcher": { "id": "byRegexp", "options": ".*ROUND_ROBIN.*" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "#FF9830", "mode": "fixed" } }]
+          }
+        ]
+      },
+      "options": {
+        "orientation": "horizontal",
+        "showValue": "always",
+        "barWidth": 0.7
+      }
+    },
+    {
+      "title": "Push / Pull Ratio",
+      "description": "Running count of push vs pull rounds. Wythoff converges to a 1:φ ratio (≈38.2% push, 61.8% pull), naturally biasing toward pull for faster anti-entropy convergence.",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 10 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "convergence_gossip_push_total",
+          "legendFormat": "{{node}} push",
+          "refId": "A"
+        },
+        {
+          "expr": "convergence_gossip_pull_total",
+          "legendFormat": "{{node}} pull",
+          "refId": "B"
+        },
+        {
+          "expr": "convergence_gossip_push_total / (convergence_gossip_push_total + convergence_gossip_pull_total)",
+          "legendFormat": "{{node}} push_ratio",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "pointSize": 5,
+            "spanNulls": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byRegexp", "options": ".*push_ratio.*" },
+            "properties": [
+              { "id": "custom.axisPlacement", "value": "right" },
+              { "id": "unit", "value": "percentunit" },
+              { "id": "custom.drawStyle", "value": "line" },
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [10, 10] } }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last"] },
+        "tooltip": { "mode": "multi" }
+      }
+    },
+    {
+      "title": "Convergence Stddev by Strategy",
+      "description": "Standard deviation of convergence time. Wythoff should have low stddev (consistent convergence) compared to Random (high variance).",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 24, "x": 0, "y": 19 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "convergence_benchmark_stddev_ms",
+          "legendFormat": "{{strategy}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "green" },
+              { "value": 500, "color": "yellow" },
+              { "value": 2000, "color": "red" }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["last"], "fields": "", "values": false },
+        "textMode": "value_and_name",
+        "colorMode": "background",
+        "orientation": "horizontal"
+      }
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["gossip", "wythoff", "benchmark"],
+  "templating": { "list": [] },
+  "time": { "from": "now-5m", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Wythoff Gossip Protocol",
+  "uid": "wythoff-gossip",
+  "version": 1,
+  "refresh": "5s"
+}
