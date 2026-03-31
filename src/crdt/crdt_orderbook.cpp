@@ -62,12 +62,9 @@ std::vector<Fill> CRDTOrderBook::local_market_order(Side side, int64_t quantity)
     clock_.tick();
     auto fills = book_.match_market_order(side, quantity);
 
-    // Generate cancel ops for fully filled orders
+    // Generate cancel ops for fully filled orders so other nodes learn about them
     for (auto& fill : fills) {
-        // Check if order was fully filled (remaining == 0 means it was removed)
-        if (!book_.has_order(fill.order_id) || true) {
-            // For each fill, we generate a cancel so other nodes learn about it
-            // The order's is_cancelled was already set by match_market_order
+        if (!book_.has_order(fill.order_id)) {
             Operation op;
             op.type = OpType::CANCEL_ORDER;
             op.cancel_order_id = fill.order_id;

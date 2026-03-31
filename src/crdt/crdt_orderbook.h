@@ -50,6 +50,9 @@ private:
     OrderBook book_;
     VectorClock clock_;
 
+    // NOTE: op_log_ grows unbounded — no compaction or GC. Fine for short-lived
+    // demos, but a production system would need log truncation once all peers have
+    // acknowledged operations (e.g. via a stable vector clock watermark).
     std::vector<Operation> op_log_;
     std::set<std::string> seen_ops_;
 

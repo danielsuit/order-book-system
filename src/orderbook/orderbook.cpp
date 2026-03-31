@@ -199,6 +199,9 @@ void OrderBook::apply_replicated_cancel(const std::string& order_id) {
     remove_order_from_level(order_id, order.side, order.price);
 }
 
+// NOTE: Linear scan through the deque is O(n) per level. A production system would
+// use an unordered_map<string, deque::iterator> for O(1) removal, at the cost of
+// iterator invalidation bookkeeping. Acceptable here since price levels are small.
 void OrderBook::remove_order_from_level(const std::string& order_id, Side side, double price) {
     if (side == Side::BUY) {
         auto lit = bids_.find(price);
