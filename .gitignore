@@ -1,0 +1,16 @@
+# Build
+build/
+
+# Dependencies
+node_modules/
+
+# Vite build output
+frontend/dist/
+
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
