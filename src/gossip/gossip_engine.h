@@ -5,7 +5,6 @@
 #include <mutex>
 #include "../network/udp_transport.h"
 #include "../crdt/crdt_orderbook.h"
-#include "../quantum/quantum_scheduler.h"
 #include "peer.h"
 #include "message.h"
 #include "wythoff_scheduler.h"
@@ -13,9 +12,7 @@
 enum class GossipStrategy {
     RANDOM,
     ROUND_ROBIN,
-    WYTHOFF,
-    QUANTUM,         // Pure quantum-random peer selection
-    QUANTUM_HYBRID   // Wythoff base + quantum perturbation
+    WYTHOFF
 };
 
 class GossipEngine {
@@ -44,7 +41,6 @@ private:
     PeerInfo* select_random_peer();
     PeerInfo* select_round_robin_peer();
     PeerInfo* select_wythoff_peer(SyncMode& mode);
-    PeerInfo* select_quantum_peer(SyncMode& mode);
     void request_full_sync(const PeerInfo& peer);
     void send_message(const Message& msg, const std::string& host, uint16_t port);
 
@@ -68,9 +64,6 @@ private:
     WythoffScheduler scheduler_;
     uint64_t round_{0};
     uint32_t my_node_index_{0};
-
-    // Quantum scheduler (used when strategy is QUANTUM or QUANTUM_HYBRID)
-    QuantumScheduler quantum_scheduler_;
 
     // Round-robin state
     size_t rr_index_{0};

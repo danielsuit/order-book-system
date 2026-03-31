@@ -1,6 +1,4 @@
 #include "client_handler.h"
-#include "../quantum/julia_bridge.h"
-#include "../quantum/quantum_matcher.h"
 #include <sstream>
 #include <iomanip>
 #include <algorithm>
@@ -114,73 +112,6 @@ std::string ClientHandler::handle(const std::string& request, CRDTOrderBook& boo
             << snap.bids.size() << "\n"
             << "convergence_book_depth{node=\"" << book.get_node_id() << "\",side=\"ask\"} "
             << snap.asks.size() << "\n";
-        return out.str();
-    }
-
-    } else if (cmd == "QMATCH") {
-        // Quantum-optimized batch matching (does NOT execute — preview only)
-        if (!JuliaBridge::instance().is_initialized()) {
-            return "ERROR quantum_not_available";
-        }
-
-        auto all_orders = book.get_snapshot(1000);
-        // We need the actual orders, not just price levels
-        auto fills = QuantumMatcher::optimize_batch(
-            *reinterpret_cast<const OrderBook*>(&book));  // Access underlying book
-
-        std::ostringstream out;
-        out << std::fixed << std::setprecision(4);
-        out << "QMATCHES " << fills.size();
-        double total_surplus = 0.0;
-        for (auto& f : fills) {
-            out << "\n" << f.bid_order_id << " " << f.ask_order_id
-                << " " << f.exec_price << " " << f.quantity
-                << " surplus=" << f.surplus;
-            total_surplus += f.surplus * f.quantity;
-        }
-        out << "\nTOTAL_SURPLUS " << total_surplus;
-        return out.str();
-
-    } else if (cmd == "QCOMPARE") {
-        // Compare quantum vs classical matching
-        if (!JuliaBridge::instance().is_initialized()) {
-            return "ERROR quantum_not_available";
-        }
-
-        auto result = QuantumMatcher::compare(
-            *reinterpret_cast<const OrderBook*>(&book));
-
-        std::ostringstream out;
-        out << std::fixed << std::setprecision(4);
-        out << "QUANTUM_MATCHES " << result.quantum_fills.size()
-            << " SURPLUS " << result.quantum_surplus;
-        for (auto& f : result.quantum_fills) {
-            out << "\n  " << f.bid_order_id << " x " << f.ask_order_id
-                << " @ " << f.exec_price << " qty=" << f.quantity;
-        }
-        out << "\nCLASSICAL_MATCHES " << result.classical_fills.size()
-            << " SURPLUS " << result.classical_surplus;
-        for (auto& f : result.classical_fills) {
-            out << "\n  " << f.bid_order_id << " x " << f.ask_order_id
-                << " @ " << f.exec_price << " qty=" << f.quantity;
-        }
-        double improvement = 0.0;
-        if (result.classical_surplus > 0) {
-            improvement = (result.quantum_surplus - result.classical_surplus) /
-                          result.classical_surplus * 100.0;
-        }
-        out << "\nIMPROVEMENT " << improvement << "%";
-        return out.str();
-
-    } else if (cmd == "QSTATUS") {
-        // Quantum subsystem status
-        bool initialized = JuliaBridge::instance().is_initialized();
-        std::ostringstream out;
-        out << "QUANTUM " << (initialized ? "ENABLED" : "DISABLED");
-        if (initialized) {
-            out << "\nBRIDGE julia_yao";
-            out << "\nCAPABILITIES qaoa_matching quantum_rng quantum_scheduling";
-        }
         return out.str();
     }
 

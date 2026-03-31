@@ -1,6 +1,6 @@
 # Convergence — Distributed Order Book
 
-A CRDT-based distributed order book system with gossip replication across 5 Docker nodes, a React frontend dashboard, quantum-enhanced scheduling via Julia/Yao.jl, and Prometheus/Grafana monitoring.
+A CRDT-based distributed order book system with gossip replication across 5 Docker nodes, a React frontend dashboard, and Prometheus/Grafana monitoring.
 
 ## Architecture
 
@@ -22,11 +22,6 @@ A CRDT-based distributed order book system with gossip replication across 5 Dock
 │        └────┬────┘ └───┬────┘ └───┬─────┘                   │
 │             │   UDP Gossip Protocol│                          │
 │             └──────────┼──────────┘                           │
-│                        │                                     │
-│  ┌─────────────────────▼─────────────────────────┐           │
-│  │         Quantum Computing Layer (Julia)        │           │
-│  │  QuantumRNG (Yao.jl)  │  QAOA Optimizer       │           │
-│  └───────────────────────────────────────────────┘           │
 │                                                              │
 │  Monitoring: Prometheus :9090  │  Grafana :3000              │
 └──────────────────────────────────────────────────────────────┘
@@ -45,12 +40,6 @@ A CRDT-based distributed order book system with gossip replication across 5 Dock
 | `RANDOM` | Pick a random alive peer each round |
 | `ROUND_ROBIN` | Cycle through peers sequentially |
 | `WYTHOFF` | Deterministic quasi-periodic schedule using Wythoff's construction (golden ratio). Produces uniform coverage and a 1:phi push-to-pull ratio that favors convergence healing. |
-| `QUANTUM` | Fully quantum-random peer selection via Hadamard circuit measurements (Julia/Yao.jl). Cannot resonate with periodic network faults. |
-| `QUANTUM_HYBRID` | Wythoff base schedule with 20% quantum-random peer swaps and quantum-jittered timing. Preserves Wythoff's coverage guarantees while breaking fault correlations. |
-
-**Quantum Computing** (`src/quantum/`, `src/quantum/julia/`) — Julia embedded in C++ via the Julia C API. Two quantum modules:
-- **QuantumRNG**: Generates random numbers by applying Hadamard gates to qubits in the |0> state and measuring. Used for gossip peer selection and timing jitter.
-- **QuantumOptimizer**: QAOA (Quantum Approximate Optimization Algorithm) for batch order matching. Encodes bid/ask matching as a QUBO problem, explores the solution space via parameterized quantum circuits, and optimizes parameters with Nelder-Mead. Falls back to classical greedy for >20 candidates.
 
 **Network Layer** (`src/network/`) — TCP server for client commands, UDP transport for gossip messages between nodes.
 
@@ -65,9 +54,6 @@ A CRDT-based distributed order book system with gossip replication across 5 Dock
 | `STATUS` | Node status and vector clock |
 | `PEERS` | List peer nodes and liveness |
 | `METRICS` | Prometheus-format metrics |
-| `QMATCH` | Preview QAOA-optimized batch matching |
-| `QCOMPARE` | Compare quantum vs classical matching surplus |
-| `QSTATUS` | Quantum subsystem status |
 
 **Frontend** (`frontend/`) — React/Vite dashboard with:
 - Order book visualization per node (bids/asks with depth)
@@ -87,7 +73,6 @@ A CRDT-based distributed order book system with gossip replication across 5 Dock
 ### Prerequisites
 
 - Docker and Docker Compose
-- (Optional) Julia 1.11+ for quantum features in local development
 
 ### Run the full system
 
@@ -110,12 +95,6 @@ GOSSIP_STRATEGY=WYTHOFF docker compose up --build
 
 # Random
 GOSSIP_STRATEGY=RANDOM docker compose up --build
-
-# Quantum-enhanced (requires Julia in the Docker image)
-GOSSIP_STRATEGY=QUANTUM QUANTUM_ENABLED=1 docker compose up --build
-
-# Hybrid: Wythoff + quantum perturbation
-GOSSIP_STRATEGY=QUANTUM_HYBRID QUANTUM_ENABLED=1 docker compose up --build
 ```
 
 ### Send orders manually
@@ -140,26 +119,13 @@ echo "STATUS" | nc localhost 8001
 echo "PEERS" | nc localhost 8001
 ```
 
-### Quantum commands (when QUANTUM_ENABLED=1)
-
-```bash
-# Check if quantum subsystem is active
-echo "QSTATUS" | nc localhost 8001
-
-# Preview QAOA-optimized batch matching
-echo "QMATCH" | nc localhost 8001
-
-# Compare quantum vs classical matching
-echo "QCOMPARE" | nc localhost 8001
-```
-
 ### Run tests
 
 ```bash
 # In Docker
 docker compose run --rm node-a sh -c "cd /app && cmake -B build && cmake --build build && ./build/convergence_tests"
 
-# Locally (requires Julia for quantum tests to fully exercise)
+# Locally
 cmake -B build -DCMAKE_BUILD_TYPE=Debug
 cmake --build build
 ./build/convergence_tests
@@ -184,16 +150,9 @@ This outputs `benchmark_results.csv` and `benchmark_summary.csv` with mean, stdd
 ## Building Locally
 
 ```bash
-# Without quantum (no Julia dependency)
-cmake -B build -DENABLE_QUANTUM=OFF
+cmake -B build
 cmake --build build -j$(nproc)
 ./build/convergence
-
-# With quantum (requires Julia installed)
-export JULIA_DIR=/path/to/julia  # or just have `julia` on PATH
-cmake -B build -DENABLE_QUANTUM=ON
-cmake --build build -j$(nproc)
-QUANTUM_ENABLED=1 GOSSIP_STRATEGY=QUANTUM_HYBRID ./build/convergence
 ```
 
 ## Environment Variables
@@ -205,15 +164,13 @@ QUANTUM_ENABLED=1 GOSSIP_STRATEGY=QUANTUM_HYBRID ./build/convergence
 | `TCP_PORT` | `8000` | TCP port for client connections |
 | `SEED_PEERS` | none | Comma-separated peer list (`host:port,host:port`) |
 | `GOSSIP_INTERVAL_MS` | `100` | Milliseconds between gossip rounds |
-| `GOSSIP_STRATEGY` | `RANDOM` | `RANDOM`, `ROUND_ROBIN`, `WYTHOFF`, `QUANTUM`, `QUANTUM_HYBRID` |
-| `QUANTUM_ENABLED` | `0` | Set to `1` to initialize the Julia quantum bridge |
-| `JULIA_QUANTUM_DIR` | auto-detected | Path to directory containing `init.jl` |
+| `GOSSIP_STRATEGY` | `RANDOM` | `RANDOM`, `ROUND_ROBIN`, `WYTHOFF` |
 
 ## Project Structure
 
 ```
-├── CMakeLists.txt                  # Build system (C++20, Julia integration)
-├── Dockerfile                      # Multi-stage: build with Julia, slim runtime
+├── CMakeLists.txt                  # Build system (C++20)
+├── Dockerfile                      # Multi-stage build
 ├── docker-compose.yml              # 5 nodes + bridge + frontend + monitoring
 ├── src/
 │   ├── main.cpp                    # Entry point
@@ -229,14 +186,6 @@ QUANTUM_ENABLED=1 GOSSIP_STRATEGY=QUANTUM_HYBRID ./build/convergence
 │   │   ├── wythoff_scheduler.h/.cpp#   Golden-ratio scheduling
 │   │   ├── message.h/.cpp          #   Serialization (push, pull, heartbeat, anti-entropy)
 │   │   ├── peer.h/.cpp             #   Peer state and liveness tracking
-│   ├── quantum/                    # Quantum computing integration
-│   │   ├── julia_bridge.h/.cpp     #   C++ ↔ Julia interop via julia.h
-│   │   ├── quantum_scheduler.h/.cpp#   Quantum/hybrid gossip scheduling
-│   │   ├── quantum_matcher.h/.cpp  #   QAOA-optimized order matching
-│   │   └── julia/                  #   Julia source modules
-│   │       ├── init.jl             #     Entry point, installs Yao.jl
-│   │       ├── quantum_rng.jl      #     Hadamard-circuit random number generation
-│   │       └── quantum_optimizer.jl#     QAOA matching optimization
 │   ├── network/                    # Transport layer
 │   │   ├── tcp_server.h/.cpp       #   TCP client connections
 │   │   ├── udp_transport.h/.cpp    #   UDP send/receive for gossip
@@ -253,7 +202,6 @@ QUANTUM_ENABLED=1 GOSSIP_STRATEGY=QUANTUM_HYBRID ./build/convergence
 │   ├── test_crdt.cpp               #   CRDT replication tests
 │   ├── test_message_serialization.cpp
 │   ├── test_wythoff_scheduler.cpp  #   Wythoff coverage and scheduling tests
-│   ├── test_quantum.cpp            #   Quantum scheduler, bridge, matcher tests
 │   └── test_main.cpp               #   Test runner
 ├── frontend/                       # React dashboard
 │   ├── src/                        #   Components, hooks, styles
@@ -287,12 +235,3 @@ GossipPair WythoffScheduler::get_pair(uint64_t round) const {
 }
 ```
 
-## Quantum Computing Integration
-
-The quantum layer is implemented in Julia using the Yao.jl framework and embedded into C++ via Julia's C API. It provides two capabilities:
-
-**Quantum RNG** — Random numbers generated by preparing qubits in the |0> state, applying Hadamard gates to create equal superposition, and measuring. Each measurement collapses to 0 or 1 with equal probability, producing fundamentally non-deterministic bits.
-
-**QAOA Order Matching** — The bid/ask matching problem is encoded as a QUBO (Quadratic Unconstrained Binary Optimization): each potential match is a binary variable, the objective maximizes total surplus weighted by quantity, and penalty terms enforce one-match-per-order constraints. A parameterized quantum circuit alternates between problem unitaries (ZZ interactions from the QUBO matrix) and mixer unitaries (X rotations), with parameters optimized by Nelder-Mead.
-
-The system compiles and runs without Julia installed. When `CONVERGENCE_QUANTUM_ENABLED=0`, the bridge methods return safe defaults and the scheduler falls back to Wythoff.

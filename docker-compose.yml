@@ -8,7 +8,7 @@ services:
       SEED_PEERS: "node-b:7000,node-c:7000,node-d:7000,node-e:7000"
       GOSSIP_INTERVAL_MS: "100"
       GOSSIP_STRATEGY: "${GOSSIP_STRATEGY:-WYTHOFF}"
-      QUANTUM_ENABLED: "${QUANTUM_ENABLED:-0}"
+
     ports:
       - "8001:8000"
       - "7001:7000/udp"
@@ -24,7 +24,7 @@ services:
       SEED_PEERS: "node-a:7000,node-c:7000,node-d:7000,node-e:7000"
       GOSSIP_INTERVAL_MS: "100"
       GOSSIP_STRATEGY: "${GOSSIP_STRATEGY:-WYTHOFF}"
-      QUANTUM_ENABLED: "${QUANTUM_ENABLED:-0}"
+
     ports:
       - "8002:8000"
       - "7002:7000/udp"
@@ -40,7 +40,7 @@ services:
       SEED_PEERS: "node-a:7000,node-b:7000,node-d:7000,node-e:7000"
       GOSSIP_INTERVAL_MS: "100"
       GOSSIP_STRATEGY: "${GOSSIP_STRATEGY:-WYTHOFF}"
-      QUANTUM_ENABLED: "${QUANTUM_ENABLED:-0}"
+
     ports:
       - "8003:8000"
       - "7003:7000/udp"
@@ -56,7 +56,7 @@ services:
       SEED_PEERS: "node-a:7000,node-b:7000,node-c:7000,node-e:7000"
       GOSSIP_INTERVAL_MS: "100"
       GOSSIP_STRATEGY: "${GOSSIP_STRATEGY:-WYTHOFF}"
-      QUANTUM_ENABLED: "${QUANTUM_ENABLED:-0}"
+
     ports:
       - "8004:8000"
       - "7004:7000/udp"
@@ -72,7 +72,7 @@ services:
       SEED_PEERS: "node-a:7000,node-b:7000,node-c:7000,node-d:7000"
       GOSSIP_INTERVAL_MS: "100"
       GOSSIP_STRATEGY: "${GOSSIP_STRATEGY:-WYTHOFF}"
-      QUANTUM_ENABLED: "${QUANTUM_ENABLED:-0}"
+
     ports:
       - "8005:8000"
       - "7005:7000/udp"

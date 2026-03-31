@@ -9,8 +9,6 @@ static const char* strategy_name(GossipStrategy s) {
     case GossipStrategy::RANDOM: return "RANDOM";
     case GossipStrategy::ROUND_ROBIN: return "ROUND_ROBIN";
     case GossipStrategy::WYTHOFF: return "WYTHOFF";
-    case GossipStrategy::QUANTUM: return "QUANTUM";
-    case GossipStrategy::QUANTUM_HYBRID: return "QUANTUM_HYBRID";
     }
     return "UNKNOWN";
 }
@@ -33,9 +31,6 @@ GossipEngine::GossipEngine(
     , peer_timeout_ms_(peer_timeout_ms)
     , strategy_(strategy)
     , scheduler_(static_cast<uint32_t>(seed_peers.size() + 1)) // +1 for self
-    , quantum_scheduler_(
-          static_cast<uint32_t>(seed_peers.size() + 1),
-          strategy == GossipStrategy::QUANTUM ? QuantumMode::PURE : QuantumMode::HYBRID)
 {
     // Build a sorted list of all node IDs (peers + self) to assign stable indices.
     // This must be deterministic across all nodes — sorting by ID guarantees that.
@@ -108,16 +103,10 @@ void GossipEngine::gossip_loop() {
             }
         }
 
-        // Sleep — Wythoff/Quantum use phase offset for anti-synchronization
+        // Sleep — Wythoff uses phase offset for anti-synchronization
         if (strategy_ == GossipStrategy::WYTHOFF) {
             double offset = scheduler_.get_phase_offset(my_node_index_,
                                                         static_cast<double>(gossip_interval_ms_));
-            auto sleep_ms = static_cast<int>(gossip_interval_ms_ + offset);
-            std::this_thread::sleep_for(std::chrono::milliseconds(sleep_ms));
-        } else if (strategy_ == GossipStrategy::QUANTUM ||
-                   strategy_ == GossipStrategy::QUANTUM_HYBRID) {
-            double offset = quantum_scheduler_.get_phase_offset(
-                my_node_index_, static_cast<double>(gossip_interval_ms_));
             auto sleep_ms = static_cast<int>(gossip_interval_ms_ + offset);
             std::this_thread::sleep_for(std::chrono::milliseconds(sleep_ms));
         } else {
@@ -140,19 +129,13 @@ void GossipEngine::do_gossip_round() {
     case GossipStrategy::WYTHOFF:
         peer = select_wythoff_peer(mode);
         break;
-    case GossipStrategy::QUANTUM:
-    case GossipStrategy::QUANTUM_HYBRID:
-        peer = select_quantum_peer(mode);
-        break;
     }
 
     if (!peer) return;
 
     auto clock = crdt_book_.get_clock();
 
-    bool use_pull = (strategy_ == GossipStrategy::WYTHOFF ||
-                     strategy_ == GossipStrategy::QUANTUM ||
-                     strategy_ == GossipStrategy::QUANTUM_HYBRID) &&
+    bool use_pull = (strategy_ == GossipStrategy::WYTHOFF) &&
                     mode == SyncMode::PULL;
 
     if (use_pull) {
@@ -174,9 +157,7 @@ void GossipEngine::do_gossip_round() {
         }
 
         Message msg;
-        msg.type = (strategy_ == GossipStrategy::WYTHOFF ||
-                    strategy_ == GossipStrategy::QUANTUM ||
-                    strategy_ == GossipStrategy::QUANTUM_HYBRID)
+        msg.type = (strategy_ == GossipStrategy::WYTHOFF)
                        ? MessageType::GOSSIP_PUSH
                        : MessageType::GOSSIP_PUSH_PULL;
         msg.sender_id = node_id_;
@@ -348,38 +329,6 @@ PeerInfo* GossipEngine::select_wythoff_peer(SyncMode& mode) {
     const std::string& target_id = all_ids[pair.receiver];
 
     // Find this peer in peers_ vector
-    for (auto& peer : peers_) {
-        if (peer.node_id == target_id) {
-            return &peer;
-        }
-    }
-
-    return nullptr;
-}
-
-PeerInfo* GossipEngine::select_quantum_peer(SyncMode& mode) {
-    std::lock_guard<std::mutex> lock(peers_mutex_);
-    if (peers_.empty()) return nullptr;
-
-    round_++;
-    auto pair = quantum_scheduler_.get_pair(round_);
-    mode = quantum_scheduler_.get_sync_mode(round_);
-
-    // Only act if this node is the sender for this round
-    if (pair.sender != my_node_index_) return nullptr;
-
-    // Map receiver index to a peer (same logic as Wythoff)
-    std::vector<std::string> all_ids;
-    all_ids.push_back(node_id_);
-    for (const auto& p : peers_) {
-        all_ids.push_back(p.node_id);
-    }
-    std::sort(all_ids.begin(), all_ids.end());
-    all_ids.erase(std::unique(all_ids.begin(), all_ids.end()), all_ids.end());
-
-    if (pair.receiver >= all_ids.size()) return nullptr;
-    const std::string& target_id = all_ids[pair.receiver];
-
     for (auto& peer : peers_) {
         if (peer.node_id == target_id) {
             return &peer;
